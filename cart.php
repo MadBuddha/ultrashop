@@ -79,6 +79,11 @@
                 const product_id = input.dataset.product_id;
                 const quantity = input.value;
 
+                function recalculateTotals{
+                    
+                    return null;
+                }
+
                  fetch("requests.php", {
                     method: "POST",
                     headers: {
