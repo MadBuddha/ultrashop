@@ -1,7 +1,7 @@
 <?php
-
+ 
 	require("config.php");
-
+ 
 	if(
 		isset($_POST["send"]) &&
 		isset($_POST["quantity"]) &&
@@ -10,22 +10,22 @@
 		is_numeric($_POST["product_id"]) &&
 		$_POST["quantity"] > 0
 	) {
-
+ 
 		$query = $db->prepare("
             SELECT price, name, image, product_id, stock
             FROM products
             WHERE product_id = ? AND stock >= ?
 		");
-
+ 
 		$query->execute([
 			$_POST["product_id"],
 			$_POST["quantity"]
 		]);
-
+ 
 		$product = $query->fetchAll( PDO::FETCH_ASSOC );
-
+ 
 		if(!empty($product)){
-
+ 
 			/* Só adicionamos ao carrinho após validar várias coisas */
 			$_SESSION["cart"][$product[0]["product_id"]] = [
 				"quantity" => (int)$_POST["quantity"], 
@@ -39,81 +39,94 @@
 ?>
 <!DOCTYPE html>
 <html lang="pt">
-<head>
-	<meta charset="UTF-8">
-	<title>Ultra Shop - Carrinho</title>
-	<style>
-	
-		table, tr, td, th {
-			border: 1px solid black;
-			border-collapse: collapse;
-		}
-	</style>
-    <script>
-    document.addEventListener("DOMContentLoaded", () =>{
-        const removeButtons = document.querySelectorAll(".remove");
-        const quantityInputs = document.querySelectorAll(".quantity");
-
-        for(let button of removeButtons){
-            button.addEventListener("click", ()=>{
-                const product_id = button.dataset.product_id;
-
-                fetch("requests.php", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type":"application/x-www-form-urlencoded"
-                    },
-                    body: "request=removeProduct&product_id=" + product_id
-                })
-                .then(response => response.json() )
-                .then(parsedResponse => {
-                    if (parsedResponse.status =="OK"){
-                        button.parentNode.parentNode.remove();
-                    }
-                });
-            })
-        }
-        for (let input of quantityInputs){
-            input.addEventListener("change", ()=>{
-
-                const product_id = input.dataset.product_id;
-                const quantity = input.value;
-
-               function recalculateTotals(element){
-
+    <head>
+        <meta charset="UTF-8">
+        <title>Ultra Shop - Carrinho</title>
+        <style>        
+            table, tr, td, th {
+                border: 1px solid black;
+                border-collapse: collapse;
+            }
+        </style>
+        <script>
+            document.addEventListener("DOMContentLoaded", () => {
+ 
+                const removeButtons = document.querySelectorAll(".remove");
+                const quantityInputs = document.querySelectorAll(".quantity");
+ 
+                function recalculateSubtotals(element) {
+ 
                     const tr = element.parentNode.parentNode;
-                    const price = tr.dataset.price;
+                    const price = tr.dataset.price ;
                     const quantity = element.value;
-                    tr.querySelector(".subtotal").textContent = price*quantity;
-
-
-let total = 0;
-                   for (let subtotal of document.querySelectorAll(".subtotal")){
-                       total = total + Number(subtotal.textContent);
-
-                   }
-                   document.querySelector(".total").textContent = total;
+ 
+                    tr.querySelector(".subtotal").textContent = price * quantity;
+ 
+                    recalculateTotal();
                 }
-
-                 fetch("requests.php", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type":"application/x-www-form-urlencoded"
-                    },
-                    body: "request=changeQuantity&product_id=" +product_id+ "&quantity=" + quantity
-                })
-                .then(response => response.json() )
-                .then(parsedResponse => {
-                    if (parsedResponse.status =="OK"){
-                        recalculateTotals(input);
+ 
+                function recalculateTotal() {
+                    let total = 0;
+                    for(let subtotal of document.querySelectorAll(".subtotal") ) {
+                        total = total + Number(subtotal.textContent);
                     }
-                });
+                    document.querySelector(".total").textContent = total;
+                }
+ 
+                for(let button of removeButtons) {
+ 
+                    button.addEventListener("click", () => {
+ 
+                        const product_id = button.dataset.product_id;
+ 
+                        fetch("requests.php", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":"application/x-www-form-urlencoded"
+                            },
+                            body: "request=removeProduct&product_id=" + product_id
+                        })
+                        .then( response => response.json() )
+                        .then( parsedResponse => {
+                            if( parsedResponse.status == "OK" ) {
+ 
+                                button.parentNode.parentNode.remove();
+ 
+                                recalculateTotal();
+                            }
+                        });
+ 
+                    });
+                }
+ 
+                for(let input of quantityInputs) {
+ 
+                    input.addEventListener("change", () => {
+ 
+                        const product_id = input.dataset.product_id;
+                        const quantity = input.value;
+ 
+                        fetch("requests.php", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":"application/x-www-form-urlencoded"
+                            },
+                            body: "request=changeQuantity&product_id=" +product_id+ "&quantity=" + quantity
+                        })
+                        .then( response => response.json() )
+                        .then( parsedResponse => {
+                            if( parsedResponse.status == "OK" ) {
+ 
+                                recalculateSubtotals( input );
+                            }
+                        });
+ 
+                    });
+                }
             });
-        }
-    })
-    </script>
-</head>
-<body>
+        </script>
+    </head>
+    <body>
 <?php 
     if(isset($_SESSION["cart"])) {
 ?>
@@ -125,40 +138,40 @@ let total = 0;
                 <th>Total</th>
                 <th>Apagar</th>
             </tr>
-
+ 
             <?php
-
+ 
             $total = 0;
-            
+ 
             foreach($_SESSION["cart"] as $item) {
-                
+ 
                 $subtotal=$item["price"]*$item["quantity"];
                 echo'
-                <tr data-price="'.$item["price"].'">
+                <tr data-price="' .$item["price"]. '">
                     <td>'.$item["name"].'</td>
                     <td>
-                    <input data-product_id="' .$item["product_id"]. '" type="number" class="quantity" value="' .$item["quantity"]. '" min="1" max="' .$item["stock"]. '">
+                        <input data-product_id="' .$item["product_id"]. '" type="number" class="quantity" value="' .$item["quantity"]. '" min="1" max="' .$item["stock"]. '">
                     </td>
                     <td>'.$item["price"].'€</td>
                     <td><span class="subtotal">'.$subtotal.'</span>€</td>
                     <td>
-                    <button data-product_id="' .$item["product_id"]. '" type="button" class="remove">X</button>
+                        <button data-product_id="' .$item["product_id"]. '" type="button" class="remove">X</button>
                     </td>
                 </tr>
-
+ 
                 ';
-
+ 
                 $total += $subtotal;
-
+ 
             }
-            
+ 
             ?>
-
+ 
             <tr>
                 <td colspan="3"></td>
-                <td><span class="total"><?php echo $total; ?></span>€</td>
+                <td colspan="2"><span class="total"><?php echo $total; ?></span>€</td>
             </tr>
-
+ 
         </table>
         <nav>
             <a href="./">Voltar ao Ínicio</a>
@@ -170,5 +183,5 @@ let total = 0;
         echo "<p>Ainda não tem artigos adicionados</p>";
     }
 ?>
-</body>
+    </body>
 </html>
